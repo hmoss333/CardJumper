@@ -9,7 +9,7 @@ public class Deck : MonoBehaviour {
 
 	// Use this for initialization
 	void Start () {
-        GenerateDeck(20, cards);
+        GenerateDeck(5, cards);
 	}
 	
 	// Update is called once per frame

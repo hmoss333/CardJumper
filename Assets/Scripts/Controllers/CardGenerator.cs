@@ -13,7 +13,7 @@ public class CardGenerator : MonoBehaviour {
 	void Start () {
         deck = GameObject.FindObjectOfType<Deck>();
 
-        GenerateNewCards(deck.cards, cardCount);
+        //GenerateNewCards(deck.cards, cardCount);
 	}
 	
 	// Update is called once per frame
