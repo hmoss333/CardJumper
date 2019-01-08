@@ -1,64 +1,67 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class Card : MonoBehaviour {
 
     public Texture texture;
     public string cardName;
     public AbilityController.Ability cardAbility;
+    public enum Rarity { Common, Uncommon, Rare };
+    public Rarity cardRarity;
 
-    bool active;
     public bool selected;
 
     Deck deck;
-    CardGenerator cardGen;
 
     // Use this for initialization
     void Start()
     {
         deck = GameObject.FindObjectOfType<Deck>();
-        cardGen = GameObject.FindObjectOfType<CardGenerator>();
     }
 
-    // Update is called once per frame
-    void Update()
+    public void Initialize(string name, AbilityController.Ability ability, Rarity rarity)
     {
-        if (selected && !active)
+        cardName = name;
+        cardAbility = ability;
+        cardRarity = rarity;
+
+        gameObject.name = cardName;
+        GetComponentInChildren<Text>().text = cardName;
+        texture = Resources.Load(cardName + ".png") as Texture;        
+    }
+
+    public void SelectCard()
+    {
+        if (!selected)
         {
             if (deck.activeCards.Count < 3)
                 Select();
             else
                 selected = false;
         }
-        else if (!selected && active)
+        else if (selected)
         {
             Deselect();
         }
     }
 
-    public void Initialize(string name, AbilityController.Ability ability)
+    private void Select()
     {
-        cardName = name;
-        cardAbility = ability;
-
-        gameObject.name = cardName;
-        texture = Resources.Load(cardName + ".png") as Texture;
-    }
-
-    public void Select()
-    {
-        active = true;
-        deck.activeCards.Add(this.gameObject);
-        deck.cards.Remove(this.gameObject);
+        selected = true;
+        deck.activeCards.Add(this);
+        deck.cards.Remove(this);
         AbilityController.ActivateAbility(cardAbility);
+        GetComponent<Image>().color = Color.yellow;
     }
 
-    public void Deselect()
+    private void Deselect()
     {
-        active = false;
-        deck.cards.Add(this.gameObject);
-        deck.activeCards.Remove(this.gameObject);
+        selected = false;
+        deck.cards.Add(this);
+        deck.activeCards.Remove(this);
         AbilityController.DeactivateAbility(cardAbility);
+        GetComponent<Image>().color = Color.white;
     }
 }
