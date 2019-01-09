@@ -3,34 +3,46 @@ using System.Collections;
 
 public class PlayerControl : MonoBehaviour
 {
-	[HideInInspector]
+    [HideInInspector]
 	public bool facingRight = true;			// For determining which way the player is currently facing.
-	[HideInInspector]
+
+    [Header("Jump Properties")]
+    public AudioClip[] jumpClips;           // Array of clips for when the player jumps.
+    public float jumpForce = 1000f;			// Amount of force added when the player jumps.
+    [HideInInspector]
 	public bool jump = false;				// Condition for whether the player should jump.
     bool canJump;
 
-	public float moveForce = 365f;			// Amount of force added to move the player left and right.
+    [Header("Dash Properties")]
+    public float dashTime = 0.25f;
+    public float dashSpeed = 15f;
+    bool dashing = false;
+
+    [Header("Movement Properties")]
+    public float moveForce = 365f;			// Amount of force added to move the player left and right.
 	public float maxSpeed = 5f;				// The fastest the player can travel in the x axis.
-	public AudioClip[] jumpClips;			// Array of clips for when the player jumps.
-	public float jumpForce = 1000f;			// Amount of force added when the player jumps.
-	public AudioClip[] taunts;				// Array of clips for when the player taunts.
-	public float tauntProbability = 50f;	// Chance of a taunt happening.
-	public float tauntDelay = 1f;			// Delay for when the taunt should happen.
+    private Transform groundCheck;          // A position marking where to check if the player is grounded.
+    private bool grounded = false;          // Whether or not the player is grounded.
+    private Animator anim;                  // Reference to the player's animator component.
 
+    [Header("Melee Properties")]
+    public GameObject weaponPrefab;
+    public float swingTime;
+    bool attackingMelee = false;
 
-	private int tauntIndex;					// The index of the taunts array indicating the most recent taunt.
-	private Transform groundCheck;			// A position marking where to check if the player is grounded.
-	private bool grounded = false;			// Whether or not the player is grounded.
-	private Animator anim;					// Reference to the player's animator component.
+    //public AudioClip[] taunts;				// Array of clips for when the player taunts.
+    //public float tauntProbability = 50f;	// Chance of a taunt happening.
+    //public float tauntDelay = 1f;			// Delay for when the taunt should happen.
+    //private int tauntIndex;					// The index of the taunts array indicating the most recent taunt.
 
+    Coroutine co;
 
-	void Awake()
+    void Awake()
 	{
 		// Setting up references.
 		groundCheck = transform.Find("groundCheck");
 		anim = GetComponent<Animator>();
 	}
-
 
 	void Update()
 	{
@@ -43,55 +55,90 @@ public class PlayerControl : MonoBehaviour
         }       
     }
 
-
 	void FixedUpdate ()
 	{
-		// Cache the horizontal input.
-		float h = Input.GetAxis("Horizontal");
-
-		// The Speed animator parameter is set to the absolute value of the horizontal input.
-		anim.SetFloat("Speed", Mathf.Abs(h));
-
-		// If the player is changing direction (h has a different sign to velocity.x) or hasn't reached maxSpeed yet...
-		if(h * GetComponent<Rigidbody2D>().velocity.x < maxSpeed)
-			// ... add a force to the player.
-			GetComponent<Rigidbody2D>().AddForce(Vector2.right * h * moveForce);
-
-		// If the player's horizontal velocity is greater than the maxSpeed...
-		if(Mathf.Abs(GetComponent<Rigidbody2D>().velocity.x) > maxSpeed)
-			// ... set the player's velocity to the maxSpeed in the x axis.
-			GetComponent<Rigidbody2D>().velocity = new Vector2(Mathf.Sign(GetComponent<Rigidbody2D>().velocity.x) * maxSpeed, GetComponent<Rigidbody2D>().velocity.y);
-
-		// If the input is moving the player right and the player is facing left...
-		if(h > 0 && !facingRight)
-			// ... flip the player.
-			Flip();
-		// Otherwise if the input is moving the player left and the player is facing right...
-		else if(h < 0 && facingRight)
-			// ... flip the player.
-			Flip();
-
-
-
-        // If the jump button is pressed and the player is grounded then the player should jump.
-        if (Input.GetButtonDown("Jump") && (grounded || AbilityController.doubleJump) && canJump)
+        if (GameController.isPlaying)
         {
-            // Set the Jump animator trigger parameter.
-            anim.SetTrigger("Jump");
+            // Cache the horizontal input.
+            float h = Input.GetAxis("Horizontal");
 
-            // Play a random jump audio clip.
-            int i = Random.Range(0, jumpClips.Length);
-            AudioSource.PlayClipAtPoint(jumpClips[i], transform.position);
+            // The Speed animator parameter is set to the absolute value of the horizontal input.
+            anim.SetFloat("Speed", Mathf.Abs(h));
 
-            // Add a vertical force to the player.
-            GetComponent<Rigidbody2D>().AddForce(new Vector2(0f, jumpForce));
+            // If the player is changing direction (h has a different sign to velocity.x) or hasn't reached maxSpeed yet...
+            if (h * GetComponent<Rigidbody2D>().velocity.x < maxSpeed)
+                // ... add a force to the player.
+                GetComponent<Rigidbody2D>().AddForce(Vector2.right * h * moveForce);
 
-            if (!grounded && AbilityController.doubleJump && canJump)
-                canJump = false;
+            // If the player's horizontal velocity is greater than the maxSpeed...
+            if (Mathf.Abs(GetComponent<Rigidbody2D>().velocity.x) > maxSpeed && !dashing)
+                // ... set the player's velocity to the maxSpeed in the x axis.
+                GetComponent<Rigidbody2D>().velocity = new Vector2(Mathf.Sign(GetComponent<Rigidbody2D>().velocity.x) * maxSpeed, GetComponent<Rigidbody2D>().velocity.y);
+
+            // If the input is moving the player right and the player is facing left...
+            if (h > 0 && !facingRight)
+                // ... flip the player.
+                Flip();
+            // Otherwise if the input is moving the player left and the player is facing right...
+            else if (h < 0 && facingRight)
+                // ... flip the player.
+                Flip();
+
+
+
+            // If the jump button is pressed and the player is grounded then the player should jump.
+            if (Input.GetButtonDown("Jump") && (grounded || AbilityController.doubleJump) && canJump)
+            {
+                // Set the Jump animator trigger parameter.
+                anim.SetTrigger("Jump");
+
+                // Play a random jump audio clip.
+                int i = Random.Range(0, jumpClips.Length);
+                AudioSource.PlayClipAtPoint(jumpClips[i], transform.position);
+
+                // Add a vertical force to the player.
+                GetComponent<Rigidbody2D>().AddForce(new Vector2(0f, jumpForce));
+
+                if (!grounded && AbilityController.doubleJump && canJump)
+                    canJump = false;
+            }
+
+            //Dash in the current direction that the player is facing
+            if (Input.GetButtonDown("Dash") && AbilityController.dash && !dashing)
+            {                
+                co = StartCoroutine(Dash(dashTime, dashSpeed));
+            }
+
+            if (Input.GetButtonDown("Melee") && AbilityController.melee && !attackingMelee)
+            {
+                co = StartCoroutine(Melee(weaponPrefab, swingTime, 0.5f));
+            }
         }
     }
+
+    IEnumerator Dash(float time, float speed)
+    {
+        dashing = true;
+
+        int i = facingRight ? 1 : -1;
+        GetComponent<Rigidbody2D>().velocity += new Vector2(i * speed, 0);
+        yield return new WaitForSeconds(time);
+
+        dashing = false;
+    }
 	
-	
+    IEnumerator Melee(GameObject weapon, float time, float offset)
+    {
+        attackingMelee = true;
+
+        int i = facingRight ? 1 : -1;
+        GameObject tempWeapon = Instantiate(weapon, new Vector2(transform.position.x + (i * offset), transform.position.y), Quaternion.identity, transform);
+        yield return new WaitForSeconds(time);
+        Destroy(tempWeapon);
+
+        attackingMelee = false;
+    }
+
 	void Flip ()
 	{
 		// Switch the way the player is labelled as facing.
@@ -103,41 +150,39 @@ public class PlayerControl : MonoBehaviour
 		transform.localScale = theScale;
 	}
 
+	//public IEnumerator Taunt()
+	//{
+	//	// Check the random chance of taunting.
+	//	float tauntChance = Random.Range(0f, 100f);
+	//	if(tauntChance > tauntProbability)
+	//	{
+	//		// Wait for tauntDelay number of seconds.
+	//		yield return new WaitForSeconds(tauntDelay);
 
-	public IEnumerator Taunt()
-	{
-		// Check the random chance of taunting.
-		float tauntChance = Random.Range(0f, 100f);
-		if(tauntChance > tauntProbability)
-		{
-			// Wait for tauntDelay number of seconds.
-			yield return new WaitForSeconds(tauntDelay);
+	//		// If there is no clip currently playing.
+	//		if(!GetComponent<AudioSource>().isPlaying)
+	//		{
+	//			// Choose a random, but different taunt.
+	//			tauntIndex = TauntRandom();
 
-			// If there is no clip currently playing.
-			if(!GetComponent<AudioSource>().isPlaying)
-			{
-				// Choose a random, but different taunt.
-				tauntIndex = TauntRandom();
+	//			// Play the new taunt.
+	//			GetComponent<AudioSource>().clip = taunts[tauntIndex];
+	//			GetComponent<AudioSource>().Play();
+	//		}
+	//	}
+	//}
 
-				// Play the new taunt.
-				GetComponent<AudioSource>().clip = taunts[tauntIndex];
-				GetComponent<AudioSource>().Play();
-			}
-		}
-	}
+	//int TauntRandom()
+	//{
+	//	// Choose a random index of the taunts array.
+	//	int i = Random.Range(0, taunts.Length);
 
-
-	int TauntRandom()
-	{
-		// Choose a random index of the taunts array.
-		int i = Random.Range(0, taunts.Length);
-
-		// If it's the same as the previous taunt...
-		if(i == tauntIndex)
-			// ... try another random taunt.
-			return TauntRandom();
-		else
-			// Otherwise return this index.
-			return i;
-	}
+	//	// If it's the same as the previous taunt...
+	//	if(i == tauntIndex)
+	//		// ... try another random taunt.
+	//		return TauntRandom();
+	//	else
+	//		// Otherwise return this index.
+	//		return i;
+	//}
 }

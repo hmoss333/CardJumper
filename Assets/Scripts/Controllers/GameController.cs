@@ -11,6 +11,7 @@ public class GameController : MonoBehaviour {
     public Vector3 RightMax;
 
     bool cardsSelected;
+    public static bool isPlaying;
 
     Deck deck;
     //CardGenerator cg;
@@ -30,6 +31,7 @@ public class GameController : MonoBehaviour {
     // Use this for initialization
     void Start () {
         deck = GameObject.FindObjectOfType<Deck>();
+        isPlaying = false;
 
         //InitializeLevel(levels[currentLevel]);
         StartCoroutine(DisplayCards(deck.cards));
@@ -68,6 +70,7 @@ public class GameController : MonoBehaviour {
     void StartGameplay()
     {
         Debug.Log("Start Gameplay");
+        isPlaying = true;
     }
 
     void GameState(int step)
